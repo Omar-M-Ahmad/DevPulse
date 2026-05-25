@@ -1,0 +1,158 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-bg-primary: #0a0a0a;
+  --color-bg-secondary: #0d0d0d;
+  --color-bg-hover: #111111;
+  --color-bg-terminal: #080808;
+  --color-border-default: #1a1a1a;
+  --color-border-emphasis: #2d3748;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #475569;
+  --color-text-disabled: #374151;
+  --color-accent-green: #4ade80;
+  --color-accent-green-light: #6ee7b7;
+  --color-status-active-text: #4ade80;
+  --color-status-active-bg: #0f1f0f;
+  --color-status-active-border: #1e3a1e;
+  --color-status-cooling-text: #fbbf24;
+  --color-status-cooling-bg: #1a1800;
+  --color-status-cooling-border: #2a2518;
+  --color-status-stale-text: #ef4444;
+  --color-status-stale-bg: #1a0a0a;
+  --color-status-stale-border: #2a1414;
+
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-arabic: 'Tajawal', sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    @apply font-sans;
+  }
+
+  :lang(ar) {
+    font-family: var(--font-arabic);
+    direction: rtl;
+  }
+
+  code,
+  pre,
+  kbd,
+  .mono {
+    font-family: var(--font-mono);
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@keyframes blink-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes blink-cursor {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-blink-dot {
+  animation: blink-dot 1.2s step-end infinite;
+}
+
+.animate-blink-cursor {
+  animation: blink-cursor 1s step-end infinite;
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #f1f5f9;
+  --card: #0d0d0d;
+  --card-foreground: #f1f5f9;
+  --popover: #0d0d0d;
+  --popover-foreground: #f1f5f9;
+  --primary: #4ade80;
+  --primary-foreground: #0a0a0a;
+  --secondary: #111111;
+  --secondary-foreground: #f1f5f9;
+  --muted: #111111;
+  --muted-foreground: #94a3b8;
+  --accent: #111111;
+  --accent-foreground: #f1f5f9;
+  --destructive: #ef4444;
+  --border: #1a1a1a;
+  --input: #1a1a1a;
+  --ring: #4ade80;
+  --radius: 0.375rem;
+}

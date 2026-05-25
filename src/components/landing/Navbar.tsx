@@ -1,0 +1,39 @@
+import Link from 'next/link';
+
+export function Navbar(): React.JSX.Element {
+  return (
+    <nav className="fixed top-0 inset-x-0 z-50 border-b border-border-default bg-bg-primary/90 backdrop-blur-sm">
+      <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2">
+          <span
+            className="inline-block w-2 h-2 rounded-full bg-accent-green animate-blink-dot"
+            aria-hidden="true"
+          />
+          <span className="font-mono text-sm font-semibold text-text-primary tracking-tight">
+            DevPulse
+          </span>
+        </Link>
+
+        {/* Right side */}
+        <div className="flex items-center gap-4">
+          {/* EN/AR toggle */}
+          <button
+            type="button"
+            className="font-mono text-xs text-text-muted hover:text-text-primary transition-colors border border-border-default hover:border-border-emphasis px-3 py-1.5 rounded-sm"
+          >
+            AR / EN
+          </button>
+
+          {/* Login button */}
+          <Link
+            href="/auth"
+            className="font-mono text-xs text-bg-primary bg-accent-green hover:bg-accent-green-light transition-colors px-4 py-1.5 rounded-sm font-semibold"
+          >
+            $ login --github
+          </Link>
+        </div>
+      </div>
+    </nav>
+  );
+}
