@@ -1,27 +1,47 @@
-import { auth } from '@/lib/auth'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { routing } from '@/i18n/routing';
+import { auth } from '@/lib/auth';
+import createMiddleware from 'next-intl/middleware';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+
+const intlMiddleware = createMiddleware(routing);
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  const { pathname } = request.nextUrl
-  const session = await auth()
+  const { pathname } = request.nextUrl;
 
-  const isProtected = pathname.startsWith('/dashboard')
-  const isAuthPage = pathname === '/auth'
+  if (pathname.includes('/api/auth')) {
+    return NextResponse.next();
+  }
+
+  const response = intlMiddleware(request);
+  const session = await auth();
+
+  const locales = routing.locales;
+  const pathnameWithoutLocale = locales.reduce(
+    (path, locale) => path.replace(new RegExp(`^\\/${locale}(\\/|$)`), '/'),
+    pathname,
+  );
+
+  const isProtected = pathnameWithoutLocale.startsWith('/dashboard');
+  const isAuthPage = pathnameWithoutLocale === '/auth';
 
   if (isProtected && !session) {
-    return NextResponse.redirect(new URL('/auth', request.url))
+    return NextResponse.redirect(
+      new URL(`${request.nextUrl.locale || ''}/auth`, request.url),
+    );
   }
 
   if (isAuthPage && session) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(
+      new URL(`${request.nextUrl.locale || ''}/dashboard`, request.url),
+    );
   }
 
-  return NextResponse.next()
+  return response;
 }
 
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
+};

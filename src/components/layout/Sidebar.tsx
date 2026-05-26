@@ -1,6 +1,7 @@
 'use client';
 
 import type { User } from 'next-auth';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -8,16 +9,17 @@ interface SidebarProps {
   user: User;
 }
 
-const navItems = [
-  { href: '/dashboard', label: 'Overview', icon: '▣' },
-  { href: '/dashboard/repositories', label: 'Repositories', icon: '⬡' },
-  { href: '/dashboard/issues', label: 'Issues', icon: '◎' },
-  { href: '/dashboard/activity', label: 'Activity', icon: '≋' },
-  { href: '/dashboard/settings', label: 'Settings', icon: '⚙' },
-];
-
 export function Sidebar({ user }: SidebarProps): React.JSX.Element {
+  const t = useTranslations('nav');
   const pathname = usePathname();
+
+  const navItems = [
+    { href: '/dashboard', label: t('overview'), icon: '▣' },
+    { href: '/dashboard/repositories', label: t('repositories'), icon: '⬡' },
+    { href: '/dashboard/issues', label: t('issues'), icon: '◎' },
+    { href: '/dashboard/activity', label: t('activity'), icon: '≋' },
+    { href: '/dashboard/settings', label: t('settings'), icon: '⚙' },
+  ] as const;
 
   return (
     <aside className="w-[220px] shrink-0 border-e border-border-default bg-bg-secondary flex flex-col min-h-screen">
@@ -39,8 +41,8 @@ export function Sidebar({ user }: SidebarProps): React.JSX.Element {
         {navItems.map((item) => {
           const isActive =
             item.href === '/dashboard'
-              ? pathname === '/dashboard'
-              : pathname.startsWith(item.href);
+              ? pathname === '/dashboard' || pathname === '/ar/dashboard'
+              : pathname.includes(item.href.split('/dashboard/')[1] ?? '');
 
           return (
             <Link

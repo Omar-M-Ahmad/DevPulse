@@ -1,5 +1,4 @@
 import '@/app/globals.css';
-import type { Metadata } from 'next';
 import { IBM_Plex_Sans, JetBrains_Mono, Tajawal } from 'next/font/google';
 
 const jetbrainsMono = JetBrains_Mono({
@@ -22,24 +21,14 @@ const tajawal = Tajawal({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  title: 'DevPulse — GitHub Repository Health Monitor',
-  description:
-    'Monitor your GitHub repositories. Know which projects are active, cooling, or stale.',
-};
-
 interface RootLayoutProps {
   children: React.ReactNode;
 }
 
-export default function RootLayout({
-  children,
-}: RootLayoutProps): React.JSX.Element {
+export default function RootLayout({ children }: RootLayoutProps): React.JSX.Element {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${jetbrainsMono.variable} ${ibmPlexSans.variable} ${tajawal.variable}`}
-      >
+    <html suppressHydrationWarning>
+      <body className={`${jetbrainsMono.variable} ${ibmPlexSans.variable} ${tajawal.variable}`}>
         {children}
       </body>
     </html>
