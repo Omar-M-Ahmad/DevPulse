@@ -1,8 +1,5 @@
 import { RepoFilterTabs } from '@/components/dashboard/RepoFilterTabs';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/db';
-import { repos, users } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { getCurrentUser, getUserRepos } from '@/lib/db/queries';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -12,32 +9,29 @@ interface RepositoriesPageProps {
   searchParams: Promise<{ filter?: string }>;
 }
 
+const statusStyle = {
+  active:
+    'text-status-active-text bg-status-active-bg border-status-active-border',
+  cooling:
+    'text-status-cooling-text bg-status-cooling-bg border-status-cooling-border',
+  stale: 'text-status-stale-text bg-status-stale-bg border-status-stale-border',
+} as const;
+
 export default async function RepositoriesPage({
   searchParams,
 }: RepositoriesPageProps): Promise<React.JSX.Element> {
-  const session = await auth();
-  if (!session?.accessToken) redirect('/auth');
+  const user = await getCurrentUser();
+  if (!user) redirect('/auth');
 
   const { filter = 'all' } = await searchParams;
 
-  const githubUser = (await fetch('https://api.github.com/user', {
-    headers: { Authorization: `Bearer ${session.accessToken}` },
-    next: { revalidate: 300 },
-  }).then((r) => r.json())) as { id: number };
+  const allRepos = await getUserRepos(user.id);
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.githubId, githubUser.id),
-  });
-
-  if (!user) redirect('/auth');
-
-  const allRepos = await db.query.repos.findMany({
-    where: eq(repos.userId, user.id),
-    orderBy: desc(repos.lastCommitAt),
-  });
-
+  // Filter repos based on active tab
   const filtered =
-    filter === 'all' ? allRepos : allRepos.filter((r) => r.status === filter);
+    filter === 'all'
+      ? allRepos
+      : allRepos.filter((r) => r.status === (filter as FilterTab));
 
   const counts = {
     all: allRepos.length,
@@ -46,39 +40,22 @@ export default async function RepositoriesPage({
     stale: allRepos.filter((r) => r.status === 'stale').length,
   };
 
-  const tabs: { key: FilterTab; label: string }[] = [
-    { key: 'all', label: 'ALL' },
-    { key: 'active', label: 'ACTIVE' },
-    { key: 'cooling', label: 'COOLING' },
-    { key: 'stale', label: 'STALE' },
-  ];
-
-  const statusStyle = {
-    active:
-      'text-status-active-text bg-status-active-bg border-status-active-border',
-    cooling:
-      'text-status-cooling-text bg-status-cooling-bg border-status-cooling-border',
-    stale:
-      'text-status-stale-text bg-status-stale-bg border-status-stale-border',
-  };
-
   return (
     <div className="flex-1 p-6 overflow-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm text-text-primary font-bold">
-            {'>'} REPOSITORIES
-          </span>
-          <span className="inline-block w-2 h-4 bg-text-muted animate-blink-cursor" />
-        </div>
+      <div className="flex items-center gap-2 mb-6">
+        <span className="font-mono text-sm text-text-primary font-bold">
+          {'>'} REPOSITORIES
+        </span>
+        <span className="inline-block w-2 h-4 bg-text-muted animate-blink-cursor" />
       </div>
 
-      {/* Tabs */}
+      {/* Filter tabs */}
       <RepoFilterTabs counts={counts} />
 
-      {/* Table */}
+      {/* Repository table */}
       <div className="bg-bg-secondary border border-border-default rounded-md overflow-hidden">
+        {/* Column headers */}
         <div className="grid grid-cols-4 px-4 py-2 border-b border-border-default">
           {['NAME', 'STATUS', 'LAST_COMMIT', 'ISSUES'].map((col) => (
             <p key={col} className="font-mono text-xs text-text-disabled">
@@ -87,6 +64,7 @@ export default async function RepositoriesPage({
           ))}
         </div>
 
+        {/* Empty state */}
         {filtered.length === 0 ? (
           <div className="px-4 py-12 text-center">
             <p className="font-mono text-xs text-text-disabled">
@@ -131,7 +109,7 @@ export default async function RepositoriesPage({
       </div>
 
       {/* Pagination info */}
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4">
         <p className="font-mono text-xs text-text-disabled">
           SHOWING {filtered.length} OF {allRepos.length}
         </p>
