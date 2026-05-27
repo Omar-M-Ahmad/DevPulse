@@ -90,7 +90,12 @@
     "display_settings": "DISPLAY_SETTINGS",
     "terminal_theme": "TERMINAL_THEME",
     "retry": "$ retry --force",
-    "error_title": "[!] system_error"
+    "error_title": "[!] system_error",
+    "repositories_title": "REPOSITORIES",
+    "sync_running": "SYNC_RUNNING",
+    "sync_hint": "Fetching your repositories from GitHub. Refresh in a few seconds.",
+    "sync_refresh": "$ refresh",
+    "showing_count": "SHOWING {current} OF {total}"
   },
   "status": {
     "active": "ACTIVE",

@@ -1,5 +1,9 @@
 import { db } from '@/lib/db';
-import { getCurrentUser, getUserRepos } from '@/lib/db/queries';
+import {
+  getCurrentUser,
+  getUserRepos,
+  getLastSyncTime,
+} from '@/lib/db/queries';
 import { commits, repos } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import { getTranslations } from 'next-intl/server';
@@ -11,7 +15,17 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
 
   const t = await getTranslations('dashboard');
 
-  const userRepos = await getUserRepos(user.id);
+  const [userRepos, lastSync] = await Promise.all([
+    getUserRepos(user.id),
+    getLastSyncTime(user.id),
+  ]);
+
+  // If no sync has completed yet, show a friendly waiting state.
+  // The layout already fired sync in the background — user just needs to refresh.
+  if (!lastSync) {
+    return <SyncPendingState t={t} />;
+  }
+
   const activeCount = userRepos.filter((r) => r.status === 'active').length;
   const staleCount = userRepos.filter((r) => r.status === 'stale').length;
   const totalIssues = userRepos.reduce((sum, r) => sum + r.openIssues, 0);
@@ -79,7 +93,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Repo table — desktop only */}
+        {/* Repo table */}
         <div className="md:col-span-2 bg-bg-secondary border border-border-default rounded-md overflow-hidden">
           <div className="px-4 py-3 border-b border-border-default">
             <p className="font-mono text-xs text-text-muted uppercase tracking-widest">
@@ -116,7 +130,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                 <span
                   className={`font-mono text-xs px-2 py-0.5 rounded-sm border w-fit ${statusStyle[repo.status]}`}
                 >
-                  {repo.status.toUpperCase()}
+                  {t(
+                    `status_${repo.status}` as
+                      | 'status_active'
+                      | 'status_cooling'
+                      | 'status_stale',
+                  )}
                 </span>
                 <p className="font-mono text-xs text-text-muted">
                   {repo.lastCommitAt
@@ -125,7 +144,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                 </p>
                 <p className="font-mono text-xs text-text-muted">
                   {repo.openIssues > 0
-                    ? `${repo.openIssues} open`
+                    ? `${repo.openIssues} ${t('open_issues')}`
                     : t('no_issues')}
                 </p>
               </div>
@@ -143,7 +162,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                   <span
                     className={`font-mono text-xs px-2 py-0.5 rounded-sm border shrink-0 ${statusStyle[repo.status]}`}
                   >
-                    {repo.status.toUpperCase()}
+                    {t(
+                      `status_${repo.status}` as
+                        | 'status_active'
+                        | 'status_cooling'
+                        | 'status_stale',
+                    )}
                   </span>
                 </div>
                 <div className="flex items-center gap-4 mt-1">
@@ -154,7 +178,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                   </p>
                   {repo.openIssues > 0 && (
                     <p className="font-mono text-xs text-text-muted">
-                      {repo.openIssues} open
+                      {repo.openIssues} {t('open_issues')}
                     </p>
                   )}
                 </div>
@@ -203,6 +227,44 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         <p className="font-mono text-xs text-text-disabled">
           {t('connection_stable')}
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+/**
+ * Shown when the user just connected and sync hasn't completed yet.
+ * The layout fires sync in the background — user refreshes after a few seconds.
+ */
+function SyncPendingState({
+  t,
+}: {
+  t: Awaited<ReturnType<typeof getTranslations<'dashboard'>>>;
+}): React.JSX.Element {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] p-6">
+      <div className="bg-bg-secondary border border-border-default rounded-md p-8 max-w-sm w-full text-center">
+        {/* Animated dot */}
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <span className="w-2 h-2 rounded-full bg-accent-green animate-blink-dot" />
+          <span className="font-mono text-xs text-accent-green uppercase tracking-widest">
+            {t('sync_running')}
+          </span>
+        </div>
+
+        <p className="font-mono text-xs text-text-muted mb-6">
+          {t('sync_hint')}
+        </p>
+
+        {/* Manual refresh button */}
+        <a
+          href="/dashboard"
+          className="font-mono text-xs text-text-primary border border-border-default hover:border-border-emphasis px-4 py-2 rounded-sm transition-colors inline-block"
+        >
+          {t('sync_refresh')}
+        </a>
       </div>
     </div>
   );

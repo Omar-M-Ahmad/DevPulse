@@ -3,6 +3,13 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTransition } from 'react';
 
+interface TabLabels {
+  all: string;
+  active: string;
+  cooling: string;
+  stale: string;
+}
+
 interface RepoFilterTabsProps {
   counts: {
     all: number;
@@ -10,25 +17,28 @@ interface RepoFilterTabsProps {
     cooling: number;
     stale: number;
   };
+  // Labels passed from the Server Component that has access to t()
+  labels: TabLabels;
 }
 
 type FilterTab = 'all' | 'active' | 'cooling' | 'stale';
 
-const tabs: { key: FilterTab; label: string }[] = [
-  { key: 'all', label: 'ALL' },
-  { key: 'active', label: 'ACTIVE' },
-  { key: 'cooling', label: 'COOLING' },
-  { key: 'stale', label: 'STALE' },
-];
-
 export function RepoFilterTabs({
   counts,
+  labels,
 }: RepoFilterTabsProps): React.JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const currentFilter = (searchParams.get('filter') ?? 'all') as FilterTab;
+
+  const tabs: { key: FilterTab; label: string }[] = [
+    { key: 'all', label: labels.all },
+    { key: 'active', label: labels.active },
+    { key: 'cooling', label: labels.cooling },
+    { key: 'stale', label: labels.stale },
+  ];
 
   function handleTabClick(tab: FilterTab): void {
     startTransition(() => {
@@ -37,7 +47,7 @@ export function RepoFilterTabs({
   }
 
   return (
-    <div className="relative">
+    <div className="relative mb-4">
       {/* Loading bar */}
       {isPending && (
         <div className="absolute top-0 inset-x-0 h-0.5 bg-border-default overflow-hidden">
@@ -50,7 +60,6 @@ export function RepoFilterTabs({
       >
         {tabs.map((tab) => {
           const isActive = currentFilter === tab.key;
-          const isPendingThis = isPending && currentFilter !== tab.key;
 
           return (
             <button

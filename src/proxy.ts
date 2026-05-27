@@ -27,13 +27,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   if (isProtected && !session) {
     return NextResponse.redirect(
-      new URL(`${request.nextUrl.locale || ''}/auth`, request.url),
+      new URL(`/${request.nextUrl.locale || ''}/auth`, request.url),
     );
   }
 
   if (isAuthPage && session) {
     return NextResponse.redirect(
-      new URL(`${request.nextUrl.locale || ''}/dashboard`, request.url),
+      new URL(`/${request.nextUrl.locale || ''}/dashboard`, request.url),
     );
   }
 

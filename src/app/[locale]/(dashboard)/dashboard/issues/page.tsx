@@ -1,22 +1,37 @@
-import { auth } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/db/queries';
 import { db } from '@/lib/db';
-import { issues, repos, users } from '@/lib/db/schema';
+import { issues, repos } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+/** Map known GitHub label names to terminal-style color tokens. */
+const LABEL_COLORS: Record<string, string> = {
+  bug: 'text-status-stale-text bg-status-stale-bg border-status-stale-border',
+  ui: 'text-purple-400 bg-purple-950 border-purple-800',
+  enhancement:
+    'text-status-cooling-text bg-status-cooling-bg border-status-cooling-border',
+  documentation: 'text-blue-400 bg-blue-950 border-blue-800',
+  rtl: 'text-status-active-text bg-status-active-bg border-status-active-border',
+};
+
+/** Returns a human-readable relative age string for a given date. */
+function getAge(date: Date): string {
+  const days = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (days === 0) return 'today';
+  if (days === 1) return '1d ago';
+  return `${days}d ago`;
+}
+
+// ─── page ────────────────────────────────────────────────────────────────────
+
 export default async function IssuesPage(): Promise<React.JSX.Element> {
-  const session = await auth();
-  if (!session?.accessToken) redirect('/auth');
-
-  const githubUser = (await fetch('https://api.github.com/user', {
-    headers: { Authorization: `Bearer ${session.accessToken}` },
-    next: { revalidate: 300 },
-  }).then((r) => r.json())) as { id: number };
-
-  const user = await db.query.users.findFirst({
-    where: eq(users.githubId, githubUser.id),
-  });
-
+  // Use the cached helper instead of a raw GitHub API call on every render.
+  // getCurrentUser() reads the session + DB in one place and is deduplicated
+  // via React.cache(), so calling it here costs nothing if the layout already
+  // called it in the same request tree.
+  const user = await getCurrentUser();
   if (!user) redirect('/auth');
 
   const allIssues = await db
@@ -34,27 +49,9 @@ export default async function IssuesPage(): Promise<React.JSX.Element> {
     .where(eq(repos.userId, user.id))
     .orderBy(desc(issues.createdAt));
 
-  const labelColors: Record<string, string> = {
-    bug: 'text-status-stale-text bg-status-stale-bg border-status-stale-border',
-    ui: 'text-purple-400 bg-purple-950 border-purple-800',
-    enhancement:
-      'text-status-cooling-text bg-status-cooling-bg border-status-cooling-border',
-    documentation: 'text-blue-400 bg-blue-950 border-blue-800',
-    rtl: 'text-status-active-text bg-status-active-bg border-status-active-border',
-  };
-
-  function getAge(date: Date): string {
-    const days = Math.floor(
-      (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    if (days === 0) return 'today';
-    if (days === 1) return '1d ago';
-    return `${days}d ago`;
-  }
-
   return (
-    <div className="flex-1 p-6 overflow-auto">
-      {/* Header */}
+    <div className="flex-1 p-4 md:p-6 overflow-auto">
+      {/* ── Header ── */}
       <div className="flex items-center gap-4 mb-6">
         <h1 className="font-mono text-sm font-bold text-text-primary uppercase tracking-widest">
           ISSUES
@@ -64,8 +61,9 @@ export default async function IssuesPage(): Promise<React.JSX.Element> {
         </span>
       </div>
 
-      {/* Table */}
-      <div className="bg-bg-secondary border border-border-default rounded-md overflow-hidden">
+      {/* ── Desktop table (md+) ── */}
+      <div className="hidden md:block bg-bg-secondary border border-border-default rounded-md overflow-hidden">
+        {/* Column headers */}
         <div className="grid grid-cols-4 px-4 py-2 border-b border-border-default">
           {['REPO', 'TITLE', 'LABEL', 'AGE'].map((col) => (
             <p key={col} className="font-mono text-xs text-text-disabled">
@@ -73,13 +71,9 @@ export default async function IssuesPage(): Promise<React.JSX.Element> {
             </p>
           ))}
         </div>
-
+          
         {allIssues.length === 0 ? (
-          <div className="px-4 py-12 text-center">
-            <p className="font-mono text-xs text-text-disabled">
-              // no open issues
-            </p>
-          </div>
+          <EmptyState />
         ) : (
           allIssues.map((issue, i) => (
             <a
@@ -91,30 +85,13 @@ export default async function IssuesPage(): Promise<React.JSX.Element> {
                 i < allIssues.length - 1 ? 'border-b border-border-default' : ''
               }`}
             >
-              <p className="font-mono text-xs text-accent-green truncate">
+              <p className="font-mono text-xs text-accent-green truncate pe-2">
                 {issue.repoName}
               </p>
-              <p className="font-mono text-xs text-text-secondary truncate col-span-1">
+              <p className="font-mono text-xs text-text-secondary truncate pe-2">
                 #{issue.githubNumber} {issue.title}
               </p>
-              <div className="flex flex-wrap gap-1">
-                {issue.labels.slice(0, 2).map((label) => (
-                  <span
-                    key={label}
-                    className={`font-mono text-xs px-2 py-0.5 rounded-sm border ${
-                      labelColors[label] ??
-                      'text-text-muted bg-bg-hover border-border-default'
-                    }`}
-                  >
-                    {label}
-                  </span>
-                ))}
-                {issue.labels.length === 0 && (
-                  <span className="font-mono text-xs text-text-disabled">
-                    —
-                  </span>
-                )}
-              </div>
+              <LabelBadges labels={issue.labels} />
               <p className="font-mono text-xs text-text-muted">
                 {getAge(new Date(issue.createdAt))}
               </p>
@@ -122,6 +99,76 @@ export default async function IssuesPage(): Promise<React.JSX.Element> {
           ))
         )}
       </div>
+
+      {/* ── Mobile cards (< md) ── */}
+      <div className="md:hidden bg-bg-secondary border border-border-default rounded-md overflow-hidden">
+        {allIssues.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="divide-y divide-border-default">
+            {allIssues.map((issue) => (
+              <a
+                key={issue.id}
+                href={issue.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block px-4 py-3 hover:bg-bg-hover transition-colors"
+              >
+                {/* Repo name + age on same row */}
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-mono text-xs text-accent-green truncate flex-1 me-2">
+                    {issue.repoName}
+                  </p>
+                  <p className="font-mono text-xs text-text-disabled shrink-0">
+                    {getAge(new Date(issue.createdAt))}
+                  </p>
+                </div>
+
+                {/* Issue title */}
+                <p className="font-mono text-xs text-text-secondary truncate mb-2">
+                  #{issue.githubNumber} {issue.title}
+                </p>
+
+                {/* Labels */}
+                <LabelBadges labels={issue.labels} />
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── sub-components ──────────────────────────────────────────────────────────
+
+/** Renders up to 2 label badges for an issue. */
+function LabelBadges({ labels }: { labels: string[] }): React.JSX.Element {
+  if (labels.length === 0) {
+    return <span className="font-mono text-xs text-text-disabled">—</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {labels.slice(0, 2).map((label) => (
+        <span
+          key={label}
+          className={`font-mono text-xs px-2 py-0.5 rounded-sm border ${
+            LABEL_COLORS[label] ?? 'text-text-muted bg-bg-hover border-border-default'
+          }`}
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Shown when the issues list is empty. */
+function EmptyState(): React.JSX.Element {
+  return (
+    <div className="px-4 py-12 text-center">
+      <p className="font-mono text-xs text-text-disabled">// no open issues</p>
     </div>
   );
 }

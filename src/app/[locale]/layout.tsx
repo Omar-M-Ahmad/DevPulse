@@ -1,36 +1,54 @@
-import type { Metadata } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
-import { notFound } from 'next/navigation';
-import { routing } from '@/i18n/routing';
+import { MobileNav } from '@/components/layout/MobileNav';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { auth } from '@/lib/auth';
+import { getCurrentUser, getLastSyncTime } from '@/lib/db/queries';
+import { syncUserRepos } from '@/lib/github/sync';
+import { redirect } from 'next/navigation';
 
-interface LocaleLayoutProps {
+interface DashboardLayoutProps {
   children: React.ReactNode;
-  params: Promise<{ locale: string }>;
 }
 
-export const metadata: Metadata = {
-  title: 'DevPulse — GitHub Repository Health Monitor',
-  description: 'Monitor your GitHub repositories. Know which projects are active, cooling, or stale.',
-};
+// How long (in ms) before we trigger a background refresh.
+const SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
-export default async function LocaleLayout({
+export default async function DashboardLayout({
   children,
-  params,
-}: LocaleLayoutProps): Promise<React.JSX.Element> {
-  const { locale } = await params;
+}: DashboardLayoutProps): Promise<React.JSX.Element> {
+  const session = await auth();
+  if (!session?.accessToken) redirect('/auth');
 
-  if (!(routing.locales as readonly string[]).includes(locale)) {
-    notFound();
+  const user = await getCurrentUser();
+  if (!user) redirect('/auth');
+
+  // Always fire sync in the background — never block the render.
+  // First-time users will see an empty dashboard with a loading state
+  // (handled in dashboard/page.tsx) while sync runs behind the scenes.
+  const lastSync = await getLastSyncTime(user.id);
+  const needsSync =
+    !lastSync || Date.now() - lastSync.getTime() > SYNC_INTERVAL_MS;
+
+  if (needsSync) {
+    // Fire-and-forget: do NOT await. The page renders immediately.
+    syncUserRepos(user.id, session.accessToken).catch(console.error);
   }
 
-  const messages = await getMessages();
-
   return (
-    <NextIntlClientProvider messages={messages}>
-      <div lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
-        {children}
+    <div className="flex min-h-screen bg-bg-primary">
+      {/* Desktop sidebar — hidden on mobile */}
+      <div className="hidden md:flex">
+        <Sidebar
+          user={session.user ?? { name: null, email: null, image: null }}
+        />
       </div>
-    </NextIntlClientProvider>
+
+      {/* Main content area */}
+      <main className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
+        {children}
+      </main>
+
+      {/* Mobile bottom nav — hidden on desktop */}
+      <MobileNav />
+    </div>
   );
 }

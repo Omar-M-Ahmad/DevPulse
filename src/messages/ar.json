@@ -90,7 +90,12 @@
     "display_settings": "إعدادات العرض",
     "terminal_theme": "سمة الطرفية",
     "retry": "$ إعادة المحاولة --force",
-    "error_title": "[!] خطأ في النظام"
+    "error_title": "[!] خطأ في النظام",
+    "repositories_title": "المستودعات",
+    "sync_running": "جارٍ المزامنة",
+    "sync_hint": "نجلب مستودعاتك من GitHub. حدّث الصفحة بعد ثوانٍ.",
+    "sync_refresh": "$ تحديث",
+    "showing_count": "عرض {current} من {total}"
   },
   "status": {
     "active": "نشط",

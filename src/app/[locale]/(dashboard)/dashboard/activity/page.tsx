@@ -4,6 +4,29 @@ import { commits, repos } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 
+// ─── Date grouping helpers ────────────────────────────────────────────────────
+
+const toDateString = (d: Date) => d.toDateString();
+
+function buildDateLabel(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (toDateString(date) === toDateString(today)) return 'TODAY';
+  if (toDateString(date) === toDateString(yesterday)) return 'YESTERDAY';
+
+  return date
+    .toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+    })
+    .toUpperCase();
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default async function ActivityPage(): Promise<React.JSX.Element> {
   const user = await getCurrentUser();
   if (!user) redirect('/auth');
@@ -21,30 +44,10 @@ export default async function ActivityPage(): Promise<React.JSX.Element> {
     .where(eq(repos.userId, user.id))
     .orderBy(desc(commits.committedAt));
 
-  // Group commits by date label (TODAY / YESTERDAY / date string)
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-
+  // Group commits by human-readable date label
   const grouped = allCommits.reduce<Record<string, typeof allCommits>>(
     (acc, commit) => {
-      const date = new Date(commit.committedAt);
-      let label: string;
-
-      if (date.toDateString() === today.toDateString()) {
-        label = 'TODAY';
-      } else if (date.toDateString() === yesterday.toDateString()) {
-        label = 'YESTERDAY';
-      } else {
-        label = date
-          .toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'short',
-            day: 'numeric',
-          })
-          .toUpperCase();
-      }
-
+      const label = buildDateLabel(new Date(commit.committedAt));
       if (!acc[label]) acc[label] = [];
       acc[label]!.push(commit);
       return acc;
@@ -53,8 +56,8 @@ export default async function ActivityPage(): Promise<React.JSX.Element> {
   );
 
   return (
-    <div className="flex-1 p-6 overflow-auto">
-      {/* Header */}
+    <div className="flex-1 p-4 md:p-6 overflow-auto">
+      {/* ── Header ── */}
       <h1 className="font-mono text-sm font-bold text-text-primary uppercase tracking-widest mb-6">
         ACTIVITY
       </h1>
@@ -83,30 +86,34 @@ export default async function ActivityPage(): Promise<React.JSX.Element> {
                     href={commit.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center gap-4 px-4 py-3 hover:bg-bg-hover transition-colors ${
+                    className={`flex items-start gap-3 md:items-center md:gap-4 px-4 py-3 hover:bg-bg-hover transition-colors ${
                       i < dayCommits.length - 1
                         ? 'border-b border-border-default'
                         : ''
                     }`}
                   >
-                    <p className="font-mono text-xs text-accent-green shrink-0 w-32 truncate">
+                    {/* Repo name — fixed width on desktop, full width label on mobile */}
+                    <p className="font-mono text-xs text-accent-green shrink-0 w-24 md:w-32 truncate">
                       {commit.repoName}
                     </p>
+
+                    {/* Commit message — takes remaining space */}
                     <p className="font-mono text-xs text-text-secondary truncate flex-1">
                       {commit.message}
                     </p>
-                    <p className="font-mono text-xs text-text-disabled shrink-0">
-                      {new Date(commit.committedAt).toLocaleTimeString(
-                        'en-US',
-                        {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        },
-                      )}
-                    </p>
-                    <p className="font-mono text-xs text-text-disabled shrink-0">
-                      {commit.sha.slice(0, 7)}
-                    </p>
+
+                    {/* Time + SHA — hidden on small screens to avoid overflow */}
+                    <div className="hidden sm:flex items-center gap-3 md:gap-4 shrink-0">
+                      <p className="font-mono text-xs text-text-disabled">
+                        {new Date(commit.committedAt).toLocaleTimeString(
+                          'en-US',
+                          { hour: '2-digit', minute: '2-digit' },
+                        )}
+                      </p>
+                      <p className="font-mono text-xs text-text-disabled">
+                        {commit.sha.slice(0, 7)}
+                      </p>
+                    </div>
                   </a>
                 ))}
               </div>

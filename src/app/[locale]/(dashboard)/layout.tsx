@@ -9,7 +9,7 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-// How long (in ms) before we trigger a fresh sync on page visit.
+// How long (in ms) before we trigger a background refresh.
 const SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
 export default async function DashboardLayout({
@@ -21,19 +21,16 @@ export default async function DashboardLayout({
   const user = await getCurrentUser();
   if (!user) redirect('/auth');
 
-  // Auto-sync: run in the background if data is stale.
+  // Always fire sync in the background — never block the render.
+  // First-time users will see an empty dashboard with a loading state
+  // (handled in dashboard/page.tsx) while sync runs behind the scenes.
   const lastSync = await getLastSyncTime(user.id);
   const needsSync =
     !lastSync || Date.now() - lastSync.getTime() > SYNC_INTERVAL_MS;
 
   if (needsSync) {
-    if (!lastSync) {
-      // First-time user — await so they don't see an empty dashboard
-      await syncUserRepos(user.id, session.accessToken).catch(console.error);
-    } else {
-      // Returning user — sync in background, show current data immediately
-      syncUserRepos(user.id, session.accessToken).catch(console.error);
-    }
+    // Fire-and-forget: do NOT await. The page renders immediately.
+    syncUserRepos(user.id, session.accessToken).catch(console.error);
   }
 
   return (
