@@ -2,22 +2,25 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/db/queries';
 import { commits, repos } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
+import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 
-// ─── Date grouping helpers ────────────────────────────────────────────────────
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
-const toDateString = (d: Date) => d.toDateString();
-
-function buildDateLabel(date: Date): string {
+function buildDateLabel(date: Date, locale: string): string {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
 
-  if (toDateString(date) === toDateString(today)) return 'TODAY';
-  if (toDateString(date) === toDateString(yesterday)) return 'YESTERDAY';
+  const toKey = (d: Date) => d.toDateString();
 
+  if (toKey(date) === toKey(today)) return locale === 'ar' ? 'اليوم' : 'TODAY';
+  if (toKey(date) === toKey(yesterday))
+    return locale === 'ar' ? 'أمس' : 'YESTERDAY';
+
+  // Use locale-aware date formatting for older dates
   return date
-    .toLocaleDateString('en-US', {
+    .toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US', {
       weekday: 'long',
       month: 'short',
       day: 'numeric',
@@ -25,11 +28,20 @@ function buildDateLabel(date: Date): string {
     .toUpperCase();
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── page ─────────────────────────────────────────────────────────────────────
 
-export default async function ActivityPage(): Promise<React.JSX.Element> {
+interface ActivityPageProps {
+  params: Promise<{ locale: string }>;
+}
+
+export default async function ActivityPage({
+  params,
+}: ActivityPageProps): Promise<React.JSX.Element> {
   const user = await getCurrentUser();
   if (!user) redirect('/auth');
+
+  const t = await getTranslations('dashboard');
+  const { locale } = await params;
 
   const allCommits = await db
     .select({
@@ -47,7 +59,7 @@ export default async function ActivityPage(): Promise<React.JSX.Element> {
   // Group commits by human-readable date label
   const grouped = allCommits.reduce<Record<string, typeof allCommits>>(
     (acc, commit) => {
-      const label = buildDateLabel(new Date(commit.committedAt));
+      const label = buildDateLabel(new Date(commit.committedAt), locale);
       if (!acc[label]) acc[label] = [];
       acc[label]!.push(commit);
       return acc;
@@ -59,12 +71,12 @@ export default async function ActivityPage(): Promise<React.JSX.Element> {
     <div className="flex-1 p-4 md:p-6 overflow-auto">
       {/* ── Header ── */}
       <h1 className="font-mono text-sm font-bold text-text-primary uppercase tracking-widest mb-6">
-        ACTIVITY
+        {t('activity_title')}
       </h1>
 
       {allCommits.length === 0 ? (
         <p className="font-mono text-xs text-text-disabled">
-          // no activity found — sync may still be running
+          {t('no_activity')}
         </p>
       ) : (
         <div className="space-y-8">
@@ -106,7 +118,7 @@ export default async function ActivityPage(): Promise<React.JSX.Element> {
                     <div className="hidden sm:flex items-center gap-3 md:gap-4 shrink-0">
                       <p className="font-mono text-xs text-text-disabled">
                         {new Date(commit.committedAt).toLocaleTimeString(
-                          'en-US',
+                          locale === 'ar' ? 'ar-SA' : 'en-US',
                           { hour: '2-digit', minute: '2-digit' },
                         )}
                       </p>

@@ -1,16 +1,19 @@
 import { auth, signOut } from '@/lib/auth';
+import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 
 export default async function SettingsPage(): Promise<React.JSX.Element> {
   const session = await auth();
   if (!session) redirect('/auth');
 
+  const t = await getTranslations('dashboard');
+
   return (
     <div className="flex-1 p-4 md:p-6 overflow-auto">
       {/* ── Top bar ── */}
       <div className="flex items-center gap-2 mb-6 md:mb-8">
         <span className="font-mono text-xs text-text-muted">
-          $ system_config --edit
+          {t('system_config')}
         </span>
         <span className="inline-block w-2 h-4 bg-text-muted animate-blink-cursor" />
       </div>
@@ -22,16 +25,15 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* ── Left — configuration panels ── */}
         <div className="md:col-span-2 space-y-6">
-
           {/* Alert thresholds */}
           <div className="bg-bg-secondary border border-border-default rounded-md p-5">
             <p className="font-mono text-xs text-text-muted uppercase tracking-widest mb-4">
-              Alert_Thresholds
+              {t('alert_thresholds')}
             </p>
             <div className="space-y-4">
               <div>
                 <label className="font-mono text-xs text-text-secondary block mb-2">
-                  STALE_DURATION (days)
+                  {t('stale_duration')}
                 </label>
                 <input
                   type="number"
@@ -41,7 +43,7 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
               </div>
               <div>
                 <label className="font-mono text-xs text-text-secondary block mb-2">
-                  ISSUE_URGENCY_CAP
+                  {t('issue_urgency')}
                 </label>
                 <input
                   type="number"
@@ -55,7 +57,7 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
           {/* Notifications */}
           <div className="bg-bg-secondary border border-border-default rounded-md p-5">
             <p className="font-mono text-xs text-text-muted uppercase tracking-widest mb-4">
-              Notifications
+              {t('notifications')}
             </p>
             <div className="space-y-3">
               {[
@@ -88,12 +90,12 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
           {/* GitHub connection */}
           <div className="bg-bg-secondary border border-border-default rounded-md p-5">
             <p className="font-mono text-xs text-text-muted uppercase tracking-widest mb-4">
-              GitHub_Connection
+              {t('github_connection')}
             </p>
             <div className="flex items-center gap-2 mb-3">
               <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
               <p className="font-mono text-xs text-text-secondary">
-                connected as
+                {t('connected_as')}
               </p>
             </div>
             <p className="font-mono text-sm text-text-primary mb-4 truncate">
@@ -109,7 +111,7 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
                 type="submit"
                 className="font-mono text-xs text-text-muted border border-border-default hover:border-border-emphasis hover:text-text-primary px-4 py-2 rounded-sm transition-colors w-full"
               >
-                RECONNECT
+                {t('reconnect')}
               </button>
             </form>
           </div>
@@ -117,13 +119,13 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
           {/* Danger zone */}
           <div className="bg-bg-secondary border border-status-stale-border rounded-md p-5">
             <p className="font-mono text-xs text-status-stale-text uppercase tracking-widest mb-4">
-              Danger_Zone
+              {t('danger_zone')}
             </p>
             <button
               type="button"
               className="font-mono text-xs text-status-stale-text border border-status-stale-border hover:bg-status-stale-bg px-4 py-2 rounded-sm transition-colors w-full"
             >
-              PURGE_LOCAL_CACHE
+              {t('purge_cache')}
             </button>
           </div>
         </div>
@@ -132,7 +134,7 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
       {/* ── Bottom bar ── */}
       <div className="mt-8 pt-4 border-t border-border-default">
         <p className="font-mono text-xs text-text-disabled">
-          ● CONNECTION STABLE | LATENCY: 14MS
+          {t('connection_stable')}
         </p>
       </div>
     </div>
@@ -141,7 +143,9 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
 
 // ─── Terminal Theme Selector ──────────────────────────────────────────────────
 
-function TerminalThemeSelector(): React.JSX.Element {
+async function TerminalThemeSelector(): Promise<React.JSX.Element> {
+  const t = await getTranslations('dashboard');
+
   const themes = [
     { id: 'dark-green', label: 'dark-green (default)', accent: '#4ade80' },
     { id: 'dark-amber', label: 'dark-amber', accent: '#fbbf24' },
@@ -151,10 +155,10 @@ function TerminalThemeSelector(): React.JSX.Element {
   return (
     <div className="bg-bg-secondary border border-border-default rounded-md p-5">
       <p className="font-mono text-xs text-text-muted uppercase tracking-widest mb-4">
-        Display_Settings
+        {t('display_settings')}
       </p>
       <label className="font-mono text-xs text-text-secondary block mb-3">
-        TERMINAL_THEME
+        {t('terminal_theme')}
       </label>
 
       <div className="space-y-2">

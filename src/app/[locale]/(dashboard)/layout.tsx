@@ -5,7 +5,6 @@ import { db } from '@/lib/db';
 import { getLastSyncTime } from '@/lib/db/queries';
 import { users } from '@/lib/db/schema';
 import { syncUserRepos } from '@/lib/github/sync';
-import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 
 interface DashboardLayoutProps {
@@ -23,51 +22,28 @@ export default async function DashboardLayout({
     redirect('/auth');
   }
 
-  // Fast path: look up existing user row.
-  let user = await db.query.users.findFirst({
-    where: eq(users.githubId, session.githubId),
-  });
-
-  // First login: no DB row yet — fetch GitHub profile and create it.
-  if (!user) {
-    const profile = await fetch('https://api.github.com/user', {
-      headers: { Authorization: `Bearer ${session.accessToken}` },
+  // Always upsert the user — this refreshes the accessToken on every session.
+  // Without this, a token stored months ago causes 401 errors on GitHub API calls.
+  const [user] = await db
+    .insert(users)
+    .values({
+      githubId: session.githubId,
+      login: session.user?.name ?? String(session.githubId),
+      name: session.user?.name ?? null,
+      avatarUrl: session.user?.image ?? null,
+      accessToken: session.accessToken,
     })
-      .then((r) =>
-        r.ok
-          ? (r.json() as Promise<{
-              id: number;
-              login: string;
-              name: string | null;
-              avatar_url: string;
-            }>)
-          : null,
-      )
-      .catch(() => null);
-
-    // Token expired or GitHub unreachable — force re-auth.
-    if (!profile) redirect('/auth');
-
-    const [created] = await db
-      .insert(users)
-      .values({
-        githubId: profile.id,
-        login: profile.login,
-        name: profile.name ?? profile.login,
-        avatarUrl: profile.avatar_url,
+    .onConflictDoUpdate({
+      target: users.githubId,
+      set: {
+        // Refresh token and name on every login in case they changed
         accessToken: session.accessToken,
-      })
-      .onConflictDoUpdate({
-        target: users.githubId,
-        set: {
-          accessToken: session.accessToken,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-
-    user = created ?? null;
-  }
+        name: session.user?.name ?? null,
+        avatarUrl: session.user?.image ?? null,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
 
   if (!user) redirect('/auth');
 
