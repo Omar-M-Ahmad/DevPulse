@@ -1,9 +1,9 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export function Navbar(): React.JSX.Element {
@@ -15,10 +15,9 @@ export function Navbar(): React.JSX.Element {
 
   function toggleLocale(): void {
     const nextLocale = locale === 'en' ? 'ar' : 'en';
-    const pathWithoutLocale = pathname.replace(/^\/(ar|en)/, '') || '/';
-    const newPath =
-      nextLocale === 'en' ? pathWithoutLocale : `/ar${pathWithoutLocale}`;
-    router.push(newPath);
+    // next-intl's router handles locale prefix automatically —
+    // no manual string manipulation needed.
+    router.replace(pathname, { locale: nextLocale });
   }
 
   return (
