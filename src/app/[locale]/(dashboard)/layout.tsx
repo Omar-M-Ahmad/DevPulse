@@ -6,6 +6,7 @@ import { getLastSyncTime } from '@/lib/db/queries';
 import { users } from '@/lib/db/schema';
 import { syncUserRepos } from '@/lib/github/sync';
 import { redirect } from 'next/navigation';
+import { after } from 'next/server';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -53,7 +54,12 @@ export default async function DashboardLayout({
     !lastSync || Date.now() - lastSync.getTime() > SYNC_INTERVAL_MS;
 
   if (needsSync) {
-    syncUserRepos(user.id, session.accessToken).catch(console.error);
+    // after() runs the callback after the response is sent to the client.
+    // On Vercel this keeps the serverless function alive until sync finishes,
+    // instead of cutting it off the moment the HTML is flushed.
+    after(async () => {
+      await syncUserRepos(user.id, session.accessToken).catch(console.error);
+    });
   }
 
   return (
