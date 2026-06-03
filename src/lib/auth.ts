@@ -10,11 +10,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, account, profile }) {
-      // account and profile are only available on first sign-in
       if (account?.access_token) {
         token.accessToken = account.access_token;
       }
-      // profile.id is the GitHub numeric user ID — store it once
       if (profile?.id) {
         token.githubId = profile.id as unknown as number;
       }
@@ -26,7 +24,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
   },
-  pages: {
-    signIn: '/auth',
-  },
+  // No pages.signIn — proxy.ts handles all locale-aware routing.
 });

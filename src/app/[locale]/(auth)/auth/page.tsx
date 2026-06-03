@@ -10,7 +10,9 @@ export default function AuthPage(): React.JSX.Element {
 
   async function handleSignIn(): Promise<void> {
     setIsLoading(true);
-    await signIn('github');
+    // callbackUrl ensures Auth.js redirects to /dashboard after OAuth,
+    // not back to /auth which would cause a redirect loop.
+    await signIn('github', { callbackUrl: '/dashboard' });
   }
 
   return (

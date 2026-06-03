@@ -9,15 +9,14 @@ const intlMiddleware = createMiddleware(routing);
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
-  if (pathname.includes('/api/auth')) {
+  // Never intercept API routes — Auth.js session cookie is written
+  // during /api/auth/callback and must not be interrupted.
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
 
-  const response = intlMiddleware(request);
-  const session = await auth();
-
-  const locales = routing.locales;
-  const pathnameWithoutLocale = locales.reduce(
+  // Strip locale prefix to get the canonical pathname.
+  const pathnameWithoutLocale = routing.locales.reduce(
     (path, locale) => path.replace(new RegExp(`^\\/${locale}(\\/|$)`), '/'),
     pathname,
   );
@@ -25,19 +24,36 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const isProtected = pathnameWithoutLocale.startsWith('/dashboard');
   const isAuthPage = pathnameWithoutLocale === '/auth';
 
+  // Public pages — no auth check needed.
+  if (!isProtected && !isAuthPage) {
+    return intlMiddleware(request);
+  }
+
+  const session = await auth();
+
+  // Detect active locale from URL.
+  // request.nextUrl.locale is unreliable with next-intl's as-needed mode.
+  const activeLocale =
+    routing.locales.find(
+      (l) => pathname.startsWith(`/${l}/`) || pathname === `/${l}`,
+    ) ?? routing.defaultLocale;
+
+  // Build locale-aware path.
+  // Default locale (en) has no prefix under as-needed mode.
+  const withLocale = (path: string): string =>
+    activeLocale === routing.defaultLocale ? path : `/${activeLocale}${path}`;
+
   if (isProtected && !session) {
-    return NextResponse.redirect(
-      new URL(`/${request.nextUrl.locale || ''}/auth`, request.url),
-    );
+    return NextResponse.redirect(new URL(withLocale('/auth'), request.url));
   }
 
   if (isAuthPage && session) {
     return NextResponse.redirect(
-      new URL(`/${request.nextUrl.locale || ''}/dashboard`, request.url),
+      new URL(withLocale('/dashboard'), request.url),
     );
   }
 
-  return response;
+  return intlMiddleware(request);
 }
 
 export const config = {
