@@ -23,8 +23,11 @@ export default async function DashboardLayout({
     redirect('/auth');
   }
 
-  // Always upsert the user — this refreshes the accessToken on every session.
-  // Without this, a token stored months ago causes 401 errors on GitHub API calls.
+  // TypeScript can't infer that redirect() never returns, so session.accessToken
+  // remains typed as string | undefined past this point. We re-assert the type
+  // here — the redirect() above guarantees both fields are present.
+  const accessToken: string = session.accessToken;
+
   const [user] = await db
     .insert(users)
     .values({
@@ -32,13 +35,12 @@ export default async function DashboardLayout({
       login: session.user?.name ?? String(session.githubId),
       name: session.user?.name ?? null,
       avatarUrl: session.user?.image ?? null,
-      accessToken: session.accessToken,
+      accessToken,
     })
     .onConflictDoUpdate({
       target: users.githubId,
       set: {
-        // Refresh token and name on every login in case they changed
-        accessToken: session.accessToken,
+        accessToken,
         name: session.user?.name ?? null,
         avatarUrl: session.user?.image ?? null,
         updatedAt: new Date(),
@@ -48,7 +50,6 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/auth');
 
-  // Fire sync in the background — never block page rendering.
   const lastSync = await getLastSyncTime(user.id);
   const needsSync =
     !lastSync || Date.now() - lastSync.getTime() > SYNC_INTERVAL_MS;
@@ -58,7 +59,7 @@ export default async function DashboardLayout({
     // On Vercel this keeps the serverless function alive until sync finishes,
     // instead of cutting it off the moment the HTML is flushed.
     after(async () => {
-      await syncUserRepos(user.id, session.accessToken).catch(console.error);
+      await syncUserRepos(user.id, accessToken).catch(console.error);
     });
   }
 

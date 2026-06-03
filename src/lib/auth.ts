@@ -6,6 +6,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     GitHub({
       clientId: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      // repo scope is required to list both public and private repositories.
+      // Without it, GitHub returns 401 on /user/repos even with a valid token.
+      authorization: {
+        params: {
+          scope: 'read:user user:email repo',
+        },
+      },
     }),
   ],
   callbacks: {
