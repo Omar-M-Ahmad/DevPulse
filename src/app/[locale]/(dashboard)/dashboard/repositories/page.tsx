@@ -29,7 +29,7 @@ export default async function RepositoriesPage({
 
   const allRepos = await getUserRepos(user.id);
 
-// Filter repos based on active tab
+  // Filter repos based on active tab
   const filtered =
     filter === 'all'
       ? allRepos

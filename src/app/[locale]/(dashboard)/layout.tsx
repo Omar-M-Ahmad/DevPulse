@@ -19,30 +19,28 @@ export default async function DashboardLayout({
 }: DashboardLayoutProps): Promise<React.JSX.Element> {
   const session = await auth();
 
-  if (!session?.accessToken || !session?.githubId) {
+  const accessToken = session?.accessToken;
+  const githubId = session?.githubId;
+
+  if (!accessToken || !githubId) {
     redirect('/auth');
   }
-
-  // TypeScript can't infer that redirect() never returns, so session.accessToken
-  // remains typed as string | undefined past this point. We re-assert the type
-  // here — the redirect() above guarantees both fields are present.
-  const accessToken: string = session.accessToken;
 
   const [user] = await db
     .insert(users)
     .values({
-      githubId: session.githubId,
-      login: session.user?.name ?? String(session.githubId),
-      name: session.user?.name ?? null,
-      avatarUrl: session.user?.image ?? null,
+      githubId,
+      login: session?.user?.name ?? String(githubId),
+      name: session?.user?.name ?? null,
+      avatarUrl: session?.user?.image ?? null,
       accessToken,
     })
     .onConflictDoUpdate({
       target: users.githubId,
       set: {
         accessToken,
-        name: session.user?.name ?? null,
-        avatarUrl: session.user?.image ?? null,
+        name: session?.user?.name ?? null,
+        avatarUrl: session?.user?.image ?? null,
         updatedAt: new Date(),
       },
     })
@@ -55,9 +53,6 @@ export default async function DashboardLayout({
     !lastSync || Date.now() - lastSync.getTime() > SYNC_INTERVAL_MS;
 
   if (needsSync) {
-    // after() runs the callback after the response is sent to the client.
-    // On Vercel this keeps the serverless function alive until sync finishes,
-    // instead of cutting it off the moment the HTML is flushed.
     after(async () => {
       await syncUserRepos(user.id, accessToken).catch(console.error);
     });
@@ -68,7 +63,7 @@ export default async function DashboardLayout({
       {/* Desktop sidebar — hidden on mobile */}
       <div className="hidden md:flex">
         <Sidebar
-          user={session.user ?? { name: null, email: null, image: null }}
+          user={session?.user ?? { name: null, email: null, image: null }}
         />
       </div>
 

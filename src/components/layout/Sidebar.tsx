@@ -1,9 +1,9 @@
 'use client';
 
+import { usePathname } from '@/i18n/navigation';
 import type { User } from 'next-auth';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 
 interface SidebarProps {
   user: User;
@@ -41,8 +41,8 @@ export function Sidebar({ user }: SidebarProps): React.JSX.Element {
         {navItems.map((item) => {
           const isActive =
             item.href === '/dashboard'
-              ? pathname === '/dashboard' || pathname === '/ar/dashboard'
-              : pathname.includes(item.href.split('/dashboard/')[1] ?? '');
+              ? pathname === '/dashboard'
+              : pathname.startsWith(item.href);
 
           return (
             <Link

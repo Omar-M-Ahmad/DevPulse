@@ -1,8 +1,8 @@
 import { db } from '@/lib/db';
 import {
   getCurrentUser,
-  getUserRepos,
   getLastSyncTime,
+  getUserRepos,
 } from '@/lib/db/queries';
 import { commits, repos } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';

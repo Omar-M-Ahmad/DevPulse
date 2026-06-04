@@ -1,5 +1,5 @@
-import { getCurrentUser } from '@/lib/db/queries';
 import { db } from '@/lib/db';
+import { getCurrentUser } from '@/lib/db/queries';
 import { commits, issues, repos } from '@/lib/db/schema';
 import { and, desc, eq } from 'drizzle-orm';
 import { notFound, redirect } from 'next/navigation';
@@ -113,7 +113,9 @@ export default async function RepoPage({
         </div>
 
         {repo.description && (
-          <p className="font-sans text-sm text-text-muted">{repo.description}</p>
+          <p className="font-sans text-sm text-text-muted">
+            {repo.description}
+          </p>
         )}
       </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
+import { usePathname } from '@/i18n/navigation';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Overview', icon: '▣' },
@@ -12,6 +12,9 @@ const NAV_ITEMS = [
 ] as const;
 
 export function MobileNav(): React.JSX.Element {
+  // usePathname from @/i18n/navigation returns the pathname without the locale
+  // prefix, so /ar/dashboard/issues becomes /dashboard/issues.
+  // The active logic below works correctly for both EN and AR this way.
   const pathname = usePathname();
 
   return (
@@ -20,8 +23,8 @@ export function MobileNav(): React.JSX.Element {
         {NAV_ITEMS.map((item) => {
           const isActive =
             item.href === '/dashboard'
-              ? pathname === '/dashboard' || pathname.endsWith('/dashboard')
-              : pathname.includes(item.href.replace('/dashboard/', ''));
+              ? pathname === '/dashboard'
+              : pathname.startsWith(item.href);
 
           return (
             /*
