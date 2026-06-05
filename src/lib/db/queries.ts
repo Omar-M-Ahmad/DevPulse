@@ -42,3 +42,11 @@ export async function getUserRepos(userId: number) {
     orderBy: desc(repos.lastCommitAt),
   });
 }
+
+/** Returns the saved settings for a user, or null if never saved (use defaults). */
+export async function getUserSettings(userId: number) {
+  const { userSettings } = await import('@/lib/db/schema');
+  return db.query.userSettings.findFirst({
+    where: eq(userSettings.userId, userId),
+  });
+}

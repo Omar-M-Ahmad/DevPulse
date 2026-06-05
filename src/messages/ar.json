@@ -1,6 +1,7 @@
 {
   "nav": {
-    "login": "$ تسجيل الدخول  --github",
+    "login": "$ تسجيل الدخول   github",
+    "connecting": "جاري ربط حساب github ...",
     "overview": "نظرة عامة",
     "repositories": "المستودعات",
     "issues": "المشكلات",
@@ -9,9 +10,9 @@
   },
   "landing": {
     "badge": "> v1.0.0",
-    "headline": "كم مشروع بدأته...   ثم اختفى؟",
+    "headline": "كم مشروع بدأته، ثم اختفى؟",
     "subheadline": "DevPulse يراقب مستودعات GitHub الخاصة بك ويخبرك بأيها نشط، أو يتباطأ، أو يموت بصمت.",
-    "cta_primary": "$ ربط    --github",
+    "cta_primary": "$ ربط github",
     "cta_secondary": "عرض تجريبي",
     "stat_repos": "مستودع مُتابَع",
     "stat_alerts": "تنبيه مشروع متوقف",

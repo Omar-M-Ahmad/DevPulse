@@ -52,7 +52,7 @@ export function Navbar(): React.JSX.Element {
             className="font-mono text-xs text-bg-primary bg-accent-green hover:bg-accent-green-light transition-colors px-4 py-1.5 rounded-sm font-semibold h-auto"
           >
             {isLoggingIn ? (
-              <span>connecting...</span>
+              <span>{t('connecting')}</span>
             ) : (
               <Link href="/auth">{t('login')}</Link>
             )}

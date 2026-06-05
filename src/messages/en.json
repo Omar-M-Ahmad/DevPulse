@@ -1,6 +1,7 @@
 {
   "nav": {
     "login": "$ login --github",
+    "connecting": "جاري ربط حساب github ...",
     "overview": "Overview",
     "repositories": "Repositories",
     "issues": "Issues",

@@ -1,6 +1,7 @@
 import { MobileNav } from '@/components/layout/MobileNav';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { auth } from '@/lib/auth';
+import { encrypt } from '@/lib/crypto';
 import { db } from '@/lib/db';
 import { getLastSyncTime } from '@/lib/db/queries';
 import { users } from '@/lib/db/schema';
@@ -33,12 +34,13 @@ export default async function DashboardLayout({
       login: session?.user?.name ?? String(githubId),
       name: session?.user?.name ?? null,
       avatarUrl: session?.user?.image ?? null,
-      accessToken,
+      // Encrypt the token before persisting — never store OAuth tokens as plain text.
+      accessToken: encrypt(accessToken),
     })
     .onConflictDoUpdate({
       target: users.githubId,
       set: {
-        accessToken,
+        accessToken: encrypt(accessToken),
         name: session?.user?.name ?? null,
         avatarUrl: session?.user?.image ?? null,
         updatedAt: new Date(),
@@ -53,6 +55,8 @@ export default async function DashboardLayout({
     !lastSync || Date.now() - lastSync.getTime() > SYNC_INTERVAL_MS;
 
   if (needsSync) {
+    // Pass the plain accessToken from session (already decrypted by Auth.js)
+    // — no need to decrypt from DB since we have it in scope here.
     after(async () => {
       await syncUserRepos(user.id, accessToken).catch(console.error);
     });

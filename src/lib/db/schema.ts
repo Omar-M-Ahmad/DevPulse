@@ -19,6 +19,22 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export const userSettings = pgTable('user_settings', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' })
+    .unique(),
+  staleDays: integer('stale_days').default(22).notNull(),
+  issueUrgencyThreshold: integer('issue_urgency_threshold')
+    .default(10)
+    .notNull(),
+  emailAlerts: boolean('email_alerts').default(false).notNull(),
+  weeklyDigest: boolean('weekly_digest').default(true).notNull(),
+  terminalTheme: text('terminal_theme').default('dark-green').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const repos = pgTable(
   'repos',
   {
@@ -109,3 +125,4 @@ export const syncLogs = pgTable(
 export type RepoStatus = 'active' | 'cooling' | 'stale';
 export type User = typeof users.$inferSelect;
 export type Repo = typeof repos.$inferSelect;
+export type UserSettings = typeof userSettings.$inferSelect;
