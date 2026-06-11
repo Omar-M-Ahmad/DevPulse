@@ -6,8 +6,16 @@ import {
 } from '@/lib/db/queries';
 import { commits, repos } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Overview — DevPulse',
+    description: 'Monitor your GitHub repositories at a glance.',
+  };
+}
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const user = await getCurrentUser();

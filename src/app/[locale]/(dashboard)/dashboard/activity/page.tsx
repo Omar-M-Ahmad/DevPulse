@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/db/queries';
 import { commits, repos } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 
@@ -32,6 +33,13 @@ function buildDateLabel(date: Date, locale: string): string {
 
 interface ActivityPageProps {
   params: Promise<{ locale: string }>;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Activity — DevPulse',
+    description: 'Explore your commit timeline across all repositories.',
+  };
 }
 
 export default async function ActivityPage({

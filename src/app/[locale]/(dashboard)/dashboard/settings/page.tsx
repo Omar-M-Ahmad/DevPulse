@@ -1,8 +1,17 @@
 import { purgeCache, saveSettings } from '@/lib/actions/settings';
 import { auth, signOut } from '@/lib/auth';
 import { getCurrentUser, getUserSettings } from '@/lib/db/queries';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Settings — DevPulse',
+    description:
+      'Configure alert thresholds, notifications, and display preferences.',
+  };
+}
 
 export default async function SettingsPage(): Promise<React.JSX.Element> {
   const session = await auth();
@@ -37,11 +46,8 @@ export default async function SettingsPage(): Promise<React.JSX.Element> {
         <span className="inline-block w-2 h-4 bg-text-muted animate-blink-cursor" />
       </div>
 
-      {/*
-        Single column on mobile, two-column grid on md+.
-        Left column (config) takes 2/3, right column (connection) takes 1/3.
-      */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* ── Left — configuration (single form wraps all inputs) ── */}
         <form action={saveSettings} className="md:col-span-2 space-y-6">
           {/* Alert thresholds */}
           <div className="bg-bg-secondary border border-border-default rounded-md p-5">

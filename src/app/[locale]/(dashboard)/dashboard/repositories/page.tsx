@@ -1,5 +1,6 @@
 import { RepoFilterTabs } from '@/components/dashboard/RepoFilterTabs';
 import { getCurrentUser, getUserRepos } from '@/lib/db/queries';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -17,6 +18,13 @@ const STATUS_STYLE = {
     'text-status-cooling-text bg-status-cooling-bg border-status-cooling-border',
   stale: 'text-status-stale-text bg-status-stale-bg border-status-stale-border',
 } as const;
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Repositories — DevPulse',
+    description: 'Browse and filter all your GitHub repositories by status.',
+  };
+}
 
 export default async function RepositoriesPage({
   searchParams,

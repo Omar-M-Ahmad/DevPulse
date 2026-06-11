@@ -1,7 +1,8 @@
-import { getCurrentUser } from '@/lib/db/queries';
 import { db } from '@/lib/db';
+import { getCurrentUser } from '@/lib/db/queries';
 import { issues, repos } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -18,13 +19,22 @@ const LABEL_COLORS: Record<string, string> = {
 
 /** Returns a human-readable relative age string for a given date. */
 function getAge(date: Date): string {
-  const days = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const days = Math.floor(
+    (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24),
+  );
   if (days === 0) return 'today';
   if (days === 1) return '1d ago';
   return `${days}d ago`;
 }
 
 // ─── page ────────────────────────────────────────────────────────────────────
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Issues — DevPulse',
+    description: 'View all open issues across your repositories.',
+  };
+}
 
 export default async function IssuesPage(): Promise<React.JSX.Element> {
   // Use the cached helper instead of a raw GitHub API call on every render.
@@ -71,7 +81,7 @@ export default async function IssuesPage(): Promise<React.JSX.Element> {
             </p>
           ))}
         </div>
-          
+
         {allIssues.length === 0 ? (
           <EmptyState />
         ) : (
@@ -154,7 +164,8 @@ function LabelBadges({ labels }: { labels: string[] }): React.JSX.Element {
         <span
           key={label}
           className={`font-mono text-xs px-2 py-0.5 rounded-sm border ${
-            LABEL_COLORS[label] ?? 'text-text-muted bg-bg-hover border-border-default'
+            LABEL_COLORS[label] ??
+            'text-text-muted bg-bg-hover border-border-default'
           }`}
         >
           {label}

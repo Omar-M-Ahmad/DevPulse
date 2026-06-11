@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/db/queries';
 import { commits, issues, repos } from '@/lib/db/schema';
 import { and, desc, eq } from 'drizzle-orm';
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
 interface RepoPageProps {
@@ -19,6 +20,17 @@ const LABEL_COLORS: Record<string, string> = {
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
+
+export async function generateMetadata({
+  params,
+}: RepoPageProps): Promise<Metadata> {
+  const { repo } = await params;
+  const repoName = decodeURIComponent(repo);
+  return {
+    title: `${repoName} — DevPulse`,
+    description: `Commit activity, open issues, and health status for ${repoName}.`,
+  };
+}
 
 export default async function RepoPage({
   params,
