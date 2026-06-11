@@ -43,12 +43,16 @@ export function encrypt(text: string): string {
 export function decrypt(data: string): string {
   const key = getKey();
   const parts = data.split(':');
-  if (parts.length !== 3) throw new Error('Invalid encrypted token format.');
 
-  const [ivHex, authTagHex, encryptedHex] = parts;
-  const iv = Buffer.from(ivHex, 'hex');
-  const authTag = Buffer.from(authTagHex, 'hex');
-  const encrypted = Buffer.from(encryptedHex, 'hex');
+  // Validate format before destructuring — TypeScript strict mode requires
+  // array elements to be asserted non-undefined before passing to Buffer.from.
+  if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
+    throw new Error('Invalid encrypted token format.');
+  }
+
+  const iv = Buffer.from(parts[0], 'hex');
+  const authTag = Buffer.from(parts[1], 'hex');
+  const encrypted = Buffer.from(parts[2], 'hex');
 
   const decipher = createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);

@@ -1,10 +1,18 @@
+import { ActivityFilterTabs } from '@/components/dashboard/ActivityFilterTabs';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/db/queries';
 import { commits, repos } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte } from 'drizzle-orm';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Activity — DevPulse',
+    description: 'Explore your commit timeline across all repositories.',
+  };
+}
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -29,27 +37,40 @@ function buildDateLabel(date: Date, locale: string): string {
     .toUpperCase();
 }
 
+/** Returns a Date set to midnight N days ago. */
+function daysAgo(n: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 // ─── page ─────────────────────────────────────────────────────────────────────
 
 interface ActivityPageProps {
   params: Promise<{ locale: string }>;
-}
-
-export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: 'Activity — DevPulse',
-    description: 'Explore your commit timeline across all repositories.',
-  };
+  searchParams: Promise<{ days?: string }>;
 }
 
 export default async function ActivityPage({
   params,
+  searchParams,
 }: ActivityPageProps): Promise<React.JSX.Element> {
   const user = await getCurrentUser();
   if (!user) redirect('/auth');
 
   const t = await getTranslations('dashboard');
   const { locale } = await params;
+  const { days: daysParam } = await searchParams;
+
+  // Build the date cutoff from ?days= param (7 | 30 | 90 | undefined = all)
+  const dayCount = daysParam ? parseInt(daysParam, 10) : null;
+  const cutoff = dayCount && !isNaN(dayCount) ? daysAgo(dayCount) : null;
+
+  const baseCondition = eq(repos.userId, user.id);
+  const dateCondition = cutoff
+    ? and(baseCondition, gte(commits.committedAt, cutoff))
+    : baseCondition;
 
   const allCommits = await db
     .select({
@@ -61,7 +82,7 @@ export default async function ActivityPage({
     })
     .from(commits)
     .innerJoin(repos, eq(commits.repoId, repos.id))
-    .where(eq(repos.userId, user.id))
+    .where(dateCondition)
     .orderBy(desc(commits.committedAt));
 
   // Group commits by human-readable date label
@@ -82,8 +103,11 @@ export default async function ActivityPage({
         {t('activity_title')}
       </h1>
 
+      {/* ── Filter tabs ── */}
+      <ActivityFilterTabs totalCount={allCommits.length} />
+
       {allCommits.length === 0 ? (
-        <p className="font-mono text-xs text-text-disabled">
+        <p className="font-mono text-xs text-text-disabled mt-8">
           {t('no_activity')}
         </p>
       ) : (

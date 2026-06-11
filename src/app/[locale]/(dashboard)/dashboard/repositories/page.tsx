@@ -8,8 +8,10 @@ import { redirect } from 'next/navigation';
 type FilterTab = 'all' | 'active' | 'cooling' | 'stale';
 
 interface RepositoriesPageProps {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; page?: string }>;
 }
+
+const PAGE_SIZE = 10;
 
 const STATUS_STYLE = {
   active:
@@ -33,7 +35,7 @@ export default async function RepositoriesPage({
   if (!user) redirect('/auth');
 
   const t = await getTranslations('dashboard');
-  const { filter = 'all' } = await searchParams;
+  const { filter = 'all', page: pageParam = '1' } = await searchParams;
 
   const allRepos = await getUserRepos(user.id);
 
@@ -50,14 +52,25 @@ export default async function RepositoriesPage({
     stale: allRepos.filter((r) => r.status === 'stale').length,
   };
 
-  // Tab labels come from the server — RepoFilterTabs is a Client Component
-  // and cannot call t() directly, so we pass the strings from here.
+  // Pagination
+  const currentPage = Math.max(1, parseInt(pageParam, 10) || 1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginated = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
+
   const tabLabels = {
     all: t('tab_all'),
     active: t('tab_active'),
     cooling: t('tab_cooling'),
     stale: t('tab_stale'),
   };
+
+  function pageHref(p: number): string {
+    return `/dashboard/repositories?filter=${filter}&page=${p}`;
+  }
 
   return (
     <div className="flex-1 p-4 md:p-6 overflow-auto">
@@ -69,10 +82,10 @@ export default async function RepositoriesPage({
         <span className="inline-block w-2 h-4 bg-text-muted animate-blink-cursor" />
       </div>
 
-      {/* Filter tabs — labels passed from server */}
+      {/* Filter tabs */}
       <RepoFilterTabs counts={counts} labels={tabLabels} />
 
-      {/* Desktop table (md+) */}
+      {/* Desktop table */}
       <div className="hidden md:block bg-bg-secondary border border-border-default rounded-md overflow-hidden">
         <div className="grid grid-cols-4 px-4 py-2 border-b border-border-default">
           {[
@@ -87,15 +100,15 @@ export default async function RepositoriesPage({
           ))}
         </div>
 
-        {filtered.length === 0 ? (
+        {paginated.length === 0 ? (
           <EmptyState label={t('no_repos')} />
         ) : (
-          filtered.map((repo, i) => (
+          paginated.map((repo, i) => (
             <Link
               key={repo.id}
               href={`/dashboard/repositories/${repo.name}`}
               className={`grid grid-cols-4 px-4 py-3 items-center hover:bg-bg-hover transition-colors ${
-                i < filtered.length - 1 ? 'border-b border-border-default' : ''
+                i < paginated.length - 1 ? 'border-b border-border-default' : ''
               }`}
             >
               <div>
@@ -135,11 +148,11 @@ export default async function RepositoriesPage({
 
       {/* Mobile cards */}
       <div className="md:hidden bg-bg-secondary border border-border-default rounded-md overflow-hidden">
-        {filtered.length === 0 ? (
+        {paginated.length === 0 ? (
           <EmptyState label={t('no_repos')} />
         ) : (
           <div className="divide-y divide-border-default">
-            {filtered.map((repo) => (
+            {paginated.map((repo) => (
               <Link
                 key={repo.id}
                 href={`/dashboard/repositories/${repo.name}`}
@@ -183,13 +196,48 @@ export default async function RepositoriesPage({
         )}
       </div>
 
-      <div className="mt-4">
+      {/* Pagination bar */}
+      <div className="flex items-center justify-between mt-4">
         <p className="font-mono text-xs text-text-disabled">
           {t('showing_count', {
-            current: filtered.length,
-            total: allRepos.length,
+            current: paginated.length,
+            total: filtered.length,
           })}
         </p>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            {safePage > 1 ? (
+              <Link
+                href={pageHref(safePage - 1)}
+                className="font-mono text-xs text-text-muted hover:text-text-primary border border-border-default hover:border-border-emphasis px-3 py-1.5 rounded-sm transition-colors"
+              >
+                {'<'} prev
+              </Link>
+            ) : (
+              <span className="font-mono text-xs text-text-disabled border border-border-default px-3 py-1.5 rounded-sm opacity-40">
+                {'<'} prev
+              </span>
+            )}
+
+            <span className="font-mono text-xs text-text-disabled px-2">
+              {safePage} / {totalPages}
+            </span>
+
+            {safePage < totalPages ? (
+              <Link
+                href={pageHref(safePage + 1)}
+                className="font-mono text-xs text-text-muted hover:text-text-primary border border-border-default hover:border-border-emphasis px-3 py-1.5 rounded-sm transition-colors"
+              >
+                next {'>'}
+              </Link>
+            ) : (
+              <span className="font-mono text-xs text-text-disabled border border-border-default px-3 py-1.5 rounded-sm opacity-40">
+                next {'>'}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

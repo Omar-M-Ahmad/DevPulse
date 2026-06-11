@@ -1,3 +1,4 @@
+import { CommitChart } from '@/components/dashboard/CommitChart';
 import { db } from '@/lib/db';
 import {
   getCurrentUser,
@@ -5,9 +6,10 @@ import {
   getUserRepos,
 } from '@/lib/db/queries';
 import { commits, repos } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte } from 'drizzle-orm';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,6 +18,38 @@ export async function generateMetadata(): Promise<Metadata> {
     description: 'Monitor your GitHub repositories at a glance.',
   };
 }
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+/** Builds a 30-day commit frequency array, filling gaps with 0. */
+function buildChartData(
+  rawCommits: Array<{ committedAt: Date }>,
+): Array<{ date: string; count: number }> {
+  const DAYS = 30;
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  // Build a map: "YYYY-MM-DD" → count
+  const countMap = new Map<string, number>();
+  for (const c of rawCommits) {
+    const key = new Date(c.committedAt).toISOString().slice(0, 10);
+    countMap.set(key, (countMap.get(key) ?? 0) + 1);
+  }
+
+  // Fill all 30 days
+  return Array.from({ length: DAYS }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (DAYS - 1 - i));
+    const key = d.toISOString().slice(0, 10);
+    const label = d.toLocaleDateString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+    });
+    return { date: label, count: countMap.get(key) ?? 0 };
+  });
+}
+
+// ─── page ─────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const user = await getCurrentUser();
@@ -38,6 +72,11 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   const staleCount = userRepos.filter((r) => r.status === 'stale').length;
   const totalIssues = userRepos.reduce((sum, r) => sum + r.openIssues, 0);
 
+  // Fetch last 30 days of commits for the chart + recent list in one query
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  cutoff.setHours(0, 0, 0, 0);
+
   const recentCommits = await db
     .select({
       sha: commits.sha,
@@ -48,9 +87,10 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
     })
     .from(commits)
     .innerJoin(repos, eq(commits.repoId, repos.id))
-    .where(eq(repos.userId, user.id))
-    .orderBy(desc(commits.committedAt))
-    .limit(10);
+    .where(and(eq(repos.userId, user.id), gte(commits.committedAt, cutoff)))
+    .orderBy(desc(commits.committedAt));
+
+  const chartData = buildChartData(recentCommits);
 
   const statusStyle = {
     active:
@@ -70,6 +110,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
 
   return (
     <div className="flex-1 p-4 md:p-6 overflow-auto">
+      {/* ── Top bar ── */}
       <div className="flex items-center gap-2 mb-8">
         <span className="font-mono text-xs text-text-muted">
           {t('system_stat')}
@@ -77,8 +118,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         <span className="inline-block w-2 h-4 bg-text-muted animate-blink-cursor" />
       </div>
 
-      {/* Stat cards — 2 cols mobile, 4 cols desktop */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
+      {/* ── Stat cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
         {statCards.map((card) => (
           <div
             key={card.label}
@@ -100,6 +141,12 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         ))}
       </div>
 
+      {/* ── Commit chart — full width ── */}
+      <div className="mb-6">
+        <CommitChart data={chartData} label="COMMIT_ACTIVITY — LAST_30_DAYS" />
+      </div>
+
+      {/* ── Repo table + Recent commits ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Repo table */}
         <div className="md:col-span-2 bg-bg-secondary border border-border-default rounded-md overflow-hidden">
@@ -203,7 +250,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             </p>
           </div>
           <div className="divide-y divide-border-default">
-            {recentCommits.map((commit) => (
+            {recentCommits.slice(0, 10).map((commit) => (
               <a
                 key={commit.sha}
                 href={commit.url}
@@ -267,12 +314,12 @@ function SyncPendingState({
         </p>
 
         {/* Manual refresh button */}
-        <a
+        <Link
           href="/dashboard"
           className="font-mono text-xs text-text-primary border border-border-default hover:border-border-emphasis px-4 py-2 rounded-sm transition-colors inline-block"
         >
           {t('sync_refresh')}
-        </a>
+        </Link>
       </div>
     </div>
   );
