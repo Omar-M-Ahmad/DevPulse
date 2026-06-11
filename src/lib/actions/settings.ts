@@ -7,20 +7,13 @@ import { userSettings } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
-export interface SaveSettingsResult {
-  success: boolean;
-  error?: string;
-}
-
 /** Persists the settings form to the user_settings table. */
-export async function saveSettings(
-  formData: FormData,
-): Promise<SaveSettingsResult> {
+export async function saveSettings(formData: FormData): Promise<void> {
   const session = await auth();
-  if (!session?.githubId) return { success: false, error: 'Not authenticated' };
+  if (!session?.githubId) return;
 
   const user = await getCurrentUser();
-  if (!user) return { success: false, error: 'User not found' };
+  if (!user) return;
 
   const staleDays = Number(formData.get('stale_days') ?? 22);
   const issueUrgencyThreshold = Number(formData.get('issue_urgency') ?? 10);
@@ -28,55 +21,40 @@ export async function saveSettings(
   const weeklyDigest = formData.get('weekly_digest') === 'on';
   const terminalTheme = String(formData.get('terminal_theme') ?? 'dark-green');
 
-  try {
-    await db
-      .insert(userSettings)
-      .values({
-        userId: user.id,
+  await db
+    .insert(userSettings)
+    .values({
+      userId: user.id,
+      staleDays,
+      issueUrgencyThreshold,
+      emailAlerts,
+      weeklyDigest,
+      terminalTheme,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: userSettings.userId,
+      set: {
         staleDays,
         issueUrgencyThreshold,
         emailAlerts,
         weeklyDigest,
         terminalTheme,
         updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: userSettings.userId,
-        set: {
-          staleDays,
-          issueUrgencyThreshold,
-          emailAlerts,
-          weeklyDigest,
-          terminalTheme,
-          updatedAt: new Date(),
-        },
-      });
+      },
+    });
 
-    // Revalidate settings page so saved values reflect immediately
-    revalidatePath('/dashboard/settings');
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Save failed',
-    };
-  }
+  // Revalidate so the page re-fetches saved values and the layout re-reads the theme
+  revalidatePath('/dashboard/settings');
+  revalidatePath('/dashboard', 'layout');
 }
 
 /** Purges all cached repo/commit/issue data for the current user. */
-export async function purgeCache(): Promise<SaveSettingsResult> {
+export async function purgeCache(): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) return { success: false, error: 'User not found' };
+  if (!user) return;
 
-  try {
-    const { repos } = await import('@/lib/db/schema');
-    await db.delete(repos).where(eq(repos.userId, user.id));
-    revalidatePath('/dashboard');
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Purge failed',
-    };
-  }
+  const { repos } = await import('@/lib/db/schema');
+  await db.delete(repos).where(eq(repos.userId, user.id));
+  revalidatePath('/dashboard', 'layout');
 }

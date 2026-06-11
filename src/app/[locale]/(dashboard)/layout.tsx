@@ -3,7 +3,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { auth } from '@/lib/auth';
 import { encrypt } from '@/lib/crypto';
 import { db } from '@/lib/db';
-import { getLastSyncTime } from '@/lib/db/queries';
+import { getLastSyncTime, getUserSettings } from '@/lib/db/queries';
 import { users } from '@/lib/db/schema';
 import { syncUserRepos } from '@/lib/github/sync';
 import { redirect } from 'next/navigation';
@@ -14,6 +14,13 @@ interface DashboardLayoutProps {
 }
 
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
+
+/** Maps the saved terminalTheme slug to a CSS accent color. */
+const THEME_ACCENT: Record<string, string> = {
+  'dark-green': '#4ade80',
+  'dark-amber': '#fbbf24',
+  'dark-blue': '#60a5fa',
+};
 
 export default async function DashboardLayout({
   children,
@@ -50,7 +57,12 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/auth');
 
-  const lastSync = await getLastSyncTime(user.id);
+  // Load user settings and sync state in parallel
+  const [savedSettings, lastSync] = await Promise.all([
+    getUserSettings(user.id),
+    getLastSyncTime(user.id),
+  ]);
+
   const needsSync =
     !lastSync || Date.now() - lastSync.getTime() > SYNC_INTERVAL_MS;
 
@@ -62,9 +74,17 @@ export default async function DashboardLayout({
     });
   }
 
+  // Apply the user's saved theme by overriding --accent-green at runtime.
+  // All components reference var(--accent-green) so a single override here
+  // changes the accent colour across the entire dashboard instantly.
+  const themeSlug = savedSettings?.terminalTheme ?? 'dark-green';
+  const accentColor = THEME_ACCENT[themeSlug] ?? THEME_ACCENT['dark-green'];
+  const themeStyle = {
+    '--color-accent-green': accentColor,
+  } as React.CSSProperties;
+
   return (
-    <div className="flex min-h-screen bg-bg-primary">
-      {/* Desktop sidebar — hidden on mobile */}
+    <div className="flex min-h-screen bg-bg-primary" style={themeStyle}>
       <div className="hidden md:flex">
         <Sidebar
           user={session?.user ?? { name: null, email: null, image: null }}
